@@ -1780,7 +1780,7 @@ class MultiHeadedAttention(tf.keras.layers.Layer):
         self.attn = self.attn_fn.attn
 
         # (B, H, T, D) -> (B, T, H, D) -> (B, T, H*D)
-        x = x.transpose(x, [0, 2, 1, 3])
+        x = tf.transpose(x, [0, 2, 1, 3])
         x = tf.reshape(x, [batchsz, -1, self.h * self.d_k])
         return self.w_O(x)
 
