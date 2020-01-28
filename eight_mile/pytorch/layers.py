@@ -2123,6 +2123,7 @@ class TransformerEncoder(nn.Module):
 
         x = self.ln1(x)
         h = self.self_attn((x, x, x, mask))
+
         x = x + self.dropout(h)
 
         x = self.ln2(x)
@@ -2472,8 +2473,11 @@ class BeamSearchBase:
                 end_tokens = torch.full((bsz, self.K, 1), Offsets.EOS, device=device, dtype=paths.dtype)
                 paths = torch.cat([paths, end_tokens], dim=2)
                 lengths = update_lengths(lengths, torch.ones_like(lengths) == 1, mxlen)
+                lengths = update_lengths(lengths, torch.ones_like(lengths) == 1, mxlen)
                 best_scores = log_probs / self.length_penalty(lengths).squeeze(-1)
 
         # Slice off the Offsets.GO token
         paths = paths[:, :, 1:]
         return paths, lengths, best_scores
+
+
