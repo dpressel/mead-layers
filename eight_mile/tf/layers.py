@@ -2427,7 +2427,7 @@ def reload_lower_layers(sess, checkpoint):
     g = [v for v in g if not v.op.name.startswith("OptimizeLoss")]
     g = [v for v in g if not v.op.name.startswith("output/")]
     g = [v for v in g if v.op.name in model_vars]
-    saver = tf.train.Saver(g)
+    saver = tf.compat.v1.train.Saver(g)
     saver.restore(sess, latest)
 
 

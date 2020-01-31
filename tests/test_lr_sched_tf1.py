@@ -74,7 +74,7 @@ def test_zaremba():
     step_var = tf.compat.v1.placeholder(tf.int32, shape=(), name="step")
 
     gph = lr_sched(lr_var, step_var)
-    sess.run(tf.global_variables_initializer())
+    sess.run(tf.compat.v1.global_variables_initializer())
 
     lrs = []
     lrs_bl = []
@@ -105,7 +105,7 @@ def test_piecewise():
     step_var = tf.compat.v1.placeholder(tf.int32, shape=(), name="step")
 
     gph = lr_sched(lr_var, step_var)
-    sess.run(tf.global_variables_initializer())
+    sess.run(tf.compat.v1.global_variables_initializer())
 
     lrs = []
     lrs_bl = []
@@ -138,7 +138,7 @@ def test_invtime():
     step_var = tf.compat.v1.placeholder(tf.int32, shape=(), name="step")
 
     gph = lr_sched(lr_var, step_var)
-    sess.run(tf.global_variables_initializer())
+    sess.run(tf.compat.v1.global_variables_initializer())
 
     lrs = []
     lrs_bl = []

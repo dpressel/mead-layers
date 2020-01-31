@@ -467,7 +467,7 @@ def _optimize_loss(loss,
                 raise ValueError("global_step is required for learning_rate_decay_fn.")
             lr = learning_rate_decay_fn(lr, global_step)
             if "learning_rate" in summaries:
-                tf.summary.scalar("learning_rate", lr)
+                tf.compat.v1.summary.scalar("learning_rate", lr)
 
 
         elif (isinstance(optimizer, type) and
@@ -512,7 +512,7 @@ def _optimize_loss(loss,
                     "likely to be caused by an improper value of gradient_multipliers.")
 
         if "global_gradient_norm" in summaries or "gradient_norm" in summaries:
-            tf.summary.scalar("global_norm/gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
+            tf.compat.v1.summary.scalar("global_norm/gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
 
         # Optionally clip gradients by global norm.
         if isinstance(clip_gradients, float):
@@ -525,7 +525,7 @@ def _optimize_loss(loss,
 
         # Add scalar summary for loss.
         if "loss" in summaries:
-            tf.summary.scalar("loss", loss)
+            tf.compat.v1.summary.scalar("loss", loss)
 
         # Add histograms for variables, gradients and gradient norms.
         for gradient, variable in gradients:
@@ -537,13 +537,13 @@ def _optimize_loss(loss,
             if grad_values is not None:
                 var_name = variable.name.replace(":", "_")
                 if "gradients" in summaries:
-                    tf.summary.histogram("gradients/%s" % var_name, grad_values)
+                    tf.compat.v1.summary.histogram("gradients/%s" % var_name, grad_values)
                 if "gradient_norm" in summaries:
-                    tf.summary.scalar("gradient_norm/%s" % var_name, tf.linalg.global_norm([grad_values]))
+                    tf.compat.v1.summary.scalar("gradient_norm/%s" % var_name, tf.linalg.global_norm([grad_values]))
 
         if clip_gradients is not None and ("global_gradient_norm" in summaries or
                                            "gradient_norm" in summaries):
-            tf.summary.scalar("global_norm/clipped_gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
+            tf.compat.v1.summary.scalar("global_norm/clipped_gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
 
         # Create gradient updates.
         grad_updates = opt.apply_gradients(

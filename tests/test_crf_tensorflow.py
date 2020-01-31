@@ -64,7 +64,7 @@ def model(label_vocab, embeds, mask):
         embeds, label_vocab, crf=True, constraint_mask=mask, hsz=HSZ, cfiltsz=[3], wsz=WSZ, layers=2, rnntype="blstm"
     )
     model.create_loss()
-    model.sess.run(tf.global_variables_initializer())
+    model.sess.run(tf.compat.v1.global_variables_initializer())
     return model
 
 
@@ -85,7 +85,7 @@ def test_mask_is_transpose(label_vocab, model):
 
 
 def test_persists_save(model, save_file):
-    model.save_using(tf.train.Saver())
+    model.save_using(tf.compat.v1.train.Saver())
     t1 = model.sess.run(model.A)
     model.save(save_file)
     m2 = load_tagger_model(save_file)
@@ -98,6 +98,6 @@ def test_skip_mask(label_vocab, embeds, mask):
 
     model = create_tagger_model(embeds, label_vocab, crf=True, hsz=HSZ, cfiltsz=[3], wsz=WSZ, layers=2, rnntype="blstm")
     model.create_loss()
-    model.sess.run(tf.global_variables_initializer())
+    model.sess.run(tf.compat.v1.global_variables_initializer())
     transition = model.sess.run(model.A)
     assert transition[label_vocab["O"], label_vocab[S]] != -1e4

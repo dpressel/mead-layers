@@ -354,7 +354,7 @@ class PositionalMixin(tf.keras.layers.Layer):
         pass
 
 
-class SinusoidalPositionalMixin2(tf.keras.layers.Layer):
+class SinusoidalPositionalMixin2(PositionalMixin):
     def __init__(self, trainable=True, name=None, dtype=tf.float32, **kwargs):
         super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
 
@@ -515,11 +515,11 @@ class LearnedPositionalCharLSTMEmbeddings(LearnedPositionalMixin, CharLSTMEmbedd
 
 #     We then have a variable that is initialized with the value of the
 #     placeholder. This is filled in with value during the `sess.run` of
-#     `tf.global_variables_initialzier` with a feed_dict. Values are then saved
+#     `tf.compat.v1.global_variables_initialzier` with a feed_dict. Values are then saved
 #     into the checkpoint and can be reloaded from there.
 
 #     ```
-#     sess.run(tf.global_variables_initializer(), {e.W_place: e._weights})
+#     sess.run(tf.compat.v1.global_variables_initializer(), {e.W_place: e._weights})
 #     ```
 
 #     The future of this with tf 2 is unclear because it uses a placeholder to
