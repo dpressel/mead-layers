@@ -642,6 +642,7 @@ def optimizer(loss_fn, **kwargs):
 class EagerOptimizer(object):
     def __init__(self, loss, optimizer=None, **kwargs):
         self.loss = loss
+        self.global_step = kwargs.get('global_step', 0)
         if "lr_function" in kwargs:
             lr_function = kwargs["lr_function"]
         else:
@@ -701,6 +702,7 @@ class EagerOptimizer(object):
         grads = tape.gradient(loss_value, model.trainable_variables)
         grads, _ = tf.clip_by_global_norm(grads, self.clip)
         self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.global_step += 1
         return loss_value
 
     def update_with_hidden(self, model, h, x, y):
@@ -710,4 +712,5 @@ class EagerOptimizer(object):
         grads = tape.gradient(loss_value, model.trainable_variables)
         grads, _ = tf.clip_by_global_norm(grads, self.clip)
         self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.global_step += 1
         return loss_value, h
