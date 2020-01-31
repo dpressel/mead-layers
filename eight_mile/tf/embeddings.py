@@ -354,7 +354,7 @@ class PositionalMixin(tf.keras.layers.Layer):
         pass
 
 
-class SinusoidalPositionalMixin(tf.keras.layers.Layer):
+class SinusoidalPositionalMixin2(tf.keras.layers.Layer):
     def __init__(self, trainable=True, name=None, dtype=tf.float32, **kwargs):
         super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
 
@@ -378,7 +378,7 @@ class SinusoidalPositionalMixin(tf.keras.layers.Layer):
         return self.pe[:, :length]
 
 
-class SinusoidalPositionalMixinT2T(PositionalMixin):
+class SinusoidalPositionalMixin(PositionalMixin):
     def __init__(self, trainable=True, name=None, dtype=tf.float32, **kwargs):
         super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.max_timescale = kwargs.get("max_timescale", 1.0e4)
