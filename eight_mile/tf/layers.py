@@ -17,7 +17,7 @@ def set_tf_log_level(ll):
 
     TF_VERSION = get_version(tf)
     if TF_VERSION < 2:
-        import tensorflow.logging as tf_logging
+        import tensorflow.compat.v1.logging as tf_logging
     else:
         from absl import logging as tf_logging
     tf_ll = tf_logging.WARN
@@ -2004,6 +2004,32 @@ class TransformerEncoderStackWithLengths(TransformerEncoderStack):
         return super().call((x, mask))
 
 
+class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
+    def __init__(
+            self,
+            num_heads: int,
+            d_model: int,
+            pdrop: bool,
+            scale: bool = True,
+            layers: int = 1,
+            activation: str = "relu",
+            d_ff: Optional[int] = None,
+            d_k: Optional[int] = None,
+            rpr_k: Optional[Union[int, List[int]]] = None,
+            name=None,
+            **kwargs,
+    ):
+        super().__init__(num_heads, d_model, pdrop, scale, layers, activation, d_ff, d_k, rpr_k, name=name)
+        self.proj = WithDropout(tf.keras.layers.Dense(d_model), pdrop)
+
+    def call(self, inputs):
+        x, lengths = inputs
+        x = self.proj(x)
+        max_seqlen = get_shape_as_list(x)[1]
+        mask = subsequent_mask(max_seqlen)
+        return super().call((x, mask))
+
+
 class TransformerDecoderStack(tf.keras.layers.Layer):
     def __init__(
         self, d_model, num_heads, pdrop, scale=True, layers=1, activation="relu", d_ff=None, name=None, **kwargs
@@ -2273,7 +2299,7 @@ class LangSequenceModel(tf.keras.Model):
 
     def _call_without_state(self, inputs):
         embedded = self.embed_model(inputs)
-        transduced = self.transducer_model((embedded))
+        transduced = self.transducer_model((embedded, None))
         transduced = self.output_layer(transduced)
         return transduced, None
 
