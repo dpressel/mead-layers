@@ -2403,20 +2403,20 @@ def create_session():
 
 
     This also provides an abstraction that can be extended later to offer
-    more config params that raw `tf.Session()` calls dont
+    more config params that raw `tf.compat.v1.Session()` calls dont
 
-    :return: A `tf.Session`
+    :return: A `tf.compat.v1.Session`
     """
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    return tf.Session(config=config)
+    return tf.compat.v1.Session(config=config)
 
 
 def reload_lower_layers(sess, checkpoint):
     """
     Get the intersection of all non-output layers and declared vars in this graph and restore them
 
-    :param sess: (`tf.Session`) A tensorflow session to restore from
+    :param sess: (`tf.compat.v1.Session`) A tensorflow session to restore from
     :param checkpoint: (`str`) checkpoint to read from
     :return: None
     """
@@ -2436,9 +2436,9 @@ def tf_device_wrapper(func):
     def with_device(*args, **kwargs):
         device = kwargs.get("device", "default")
         if device == "cpu" and "sess" not in kwargs:
-            g = tf.Graph()
-            sess = tf.Session(
-                graph=g, config=tf.ConfigProto(allow_soft_placement=True, device_count={"CPU": 1, "GPU": 0})
+            g = tf.compat.v1.Graph()
+            sess = tf.compat.v1.Session(
+                graph=g, config=tf.compat.v1.ConfigProto(allow_soft_placement=True, device_count={"CPU": 1, "GPU": 0})
             )
             kwargs["sess"] = sess
             return func(*args, **kwargs)

@@ -354,7 +354,31 @@ class PositionalMixin(tf.keras.layers.Layer):
         pass
 
 
-class SinusoidalPositionalMixin(PositionalMixin):
+class SinusoidalPositionalMixin(tf.keras.layers.Layer):
+    def __init__(self, trainable=True, name=None, dtype=tf.float32, **kwargs):
+        super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
+
+        max_timescale = kwargs.get("max_timescale", 1.0e4)
+        # Match the mxlen pytorch has because it precomputes the timing signal
+        mxlen = kwargs.get('mxlen', 10000)
+
+        word_dsz = self.get_dsz()
+        log_timescale_increment = math.log(max_timescale) / float(word_dsz)
+        inv_timescales = np.exp(tf.cast(np.arange(0, word_dsz, 2), tf.float32) * -log_timescale_increment)
+
+        pe = np.zeros((mxlen, word_dsz,), dtype=np.float32)
+        position = np.expand_dims(tf.cast(np.arange(0, mxlen), tf.float32), 1)
+
+        pe[:, 0::2] = np.sin(position * inv_timescales)
+        pe[:, 1::2] = np.cos(position * inv_timescales)
+
+        self.pe = tf.expand_dims(pe, 0)
+
+    def positional(self, length):
+        return self.pe[:, :length]
+
+
+class SinusoidalPositionalMixinT2T(PositionalMixin):
     def __init__(self, trainable=True, name=None, dtype=tf.float32, **kwargs):
         super().__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.max_timescale = kwargs.get("max_timescale", 1.0e4)
