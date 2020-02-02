@@ -1686,11 +1686,6 @@ class LangSequenceModel(nn.Module):
     ):
         super().__init__()
         self.embed_model = embeddings
-        # if isinstance(embeddings, dict):
-        #    self.embed_model = EmbeddingsStack(embeddings)
-        # else:
-        #    assert isinstance(embeddings, EmbeddingsStack)
-        #    self.embed_model = embeddings
         self.transducer_model = transducer
         if hasattr(transducer, "requires_state") and transducer.requires_state:
             self._call = self._call_with_state
@@ -1715,7 +1710,7 @@ class LangSequenceModel(nn.Module):
 
     def _call_without_state(self, inputs: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         embedded = self.embed_model(inputs)
-        transduced = self.transducer_model((embedded))
+        transduced = self.transducer_model((embedded, None))
         transduced = self.output_layer(transduced)
         return transduced, None
 
@@ -2228,6 +2223,32 @@ class TransformerEncoderStackWithLengths(TransformerEncoderStack):
         x = self.proj(x)
         max_seqlen = x.shape[1]
         mask = sequence_mask(lengths, max_seqlen).to(x.device)
+        return super().forward((x, mask.unsqueeze(1).unsqueeze(1)))
+
+
+class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
+    def __init__(
+            self,
+            num_heads: int,
+            d_model: int,
+            pdrop: bool,
+            scale: bool = True,
+            layers: int = 1,
+            activation: str = "relu",
+            d_ff: Optional[int] = None,
+            d_k: Optional[int] = None,
+            rpr_k: Optional[Union[int, List[int]]] = None,
+            input_sz: Optional[int] = None,
+            **kwargs,
+    ):
+        super().__init__(num_heads, d_model, pdrop, scale, layers, activation, d_ff, d_k, rpr_k)
+        self.proj = WithDropout(pytorch_linear(input_sz, d_model), pdrop)
+
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        x, lengths = inputs
+        x = self.proj(x)
+        max_seqlen = x.shape[1]
+        mask = subsequent_mask(max_seqlen)
         return super().forward((x, mask.unsqueeze(1).unsqueeze(1)))
 
 
