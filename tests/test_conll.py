@@ -16,11 +16,11 @@ file_loc = os.path.realpath(os.path.dirname(__file__))
 TEST_FILE = os.path.join(file_loc, "test_data", "test.conll")
 
 gold_sentences = [
-    [["a", "1", "2"], ["b", "3", "4"], ["c", "5", "6"],],
-    [["d", "7", "8"], ["e", "9", "10"],],
-    [["g", "11", "12"], ["h", "13", "14"], ["#", "ex", "44"], ["i", "15", "16"], ["j", "17", "18"],],
-    [["k", "19", "20"],],
-    [["l", "21", "22"], ["m", "23", "24"], ["n", "25", "26"],],
+    [["a", "1", "2"], ["b", "3", "4"], ["c", "5", "6"]],
+    [["d", "7", "8"], ["e", "9", "10"]],
+    [["g", "11", "12"], ["h", "13", "14"], ["#", "ex", "44"], ["i", "15", "16"], ["j", "17", "18"]],
+    [["k", "19", "20"]],
+    [["l", "21", "22"], ["m", "23", "24"], ["n", "25", "26"]],
     [["o", "27", "28"], ["p", "29", "30"]],
 ]
 
@@ -61,13 +61,9 @@ sentence_comments = [
     [],
 ]
 
-doc_comments = [
-    [comments[0]],
-    [comments[4], comments[5]],
-    [comments[7]],
-]
+doc_comments = [[comments[0]], [comments[4], comments[5]], [comments[7]]]
 
-doc_sent_comments = [[[comments[1]], [comments[2], comments[3]],], [[], [comments[6]],], [[], [],]]
+doc_sent_comments = [[[comments[1]], [comments[2], comments[3]]], [[], [comments[6]]], [[], []]]
 
 
 def test_read_conll_sentences():
@@ -76,12 +72,7 @@ def test_read_conll_sentences():
 
 
 def test_read_conll_sentences_hash_token():
-    text_tokens = [
-        ["# This is actually a comment"],
-        ["a", "1", "2"],
-        ["#", "3", "4"],
-        ["c", "5", "6"],
-    ]
+    text_tokens = [["# This is actually a comment"], ["a", "1", "2"], ["#", "3", "4"], ["c", "5", "6"]]
     gold = [text_tokens[1:]]
     text = StringIO("\n".join(" ".join([t for t in tt]) for tt in text_tokens))
     for p, g in zip(read_conll_sentences(text), gold):
@@ -89,11 +80,7 @@ def test_read_conll_sentences_hash_token():
 
 
 def test_read_conll_sentences_no_comments():
-    text_tokens = [
-        ["#", "1", "2"],
-        ["b", "3", "4"],
-        ["c", "5", "6"],
-    ]
+    text_tokens = [["#", "1", "2"], ["b", "3", "4"], ["c", "5", "6"]]
     gold = [text_tokens]
     text = StringIO("\n".join(" ".join([t for t in tt]) for tt in text_tokens))
     for p, g in zip(read_conll_sentences(text, allow_comments=False), gold):
@@ -101,11 +88,7 @@ def test_read_conll_sentences_no_comments():
 
 
 def test_read_conll_sentences_diff_comment_string():
-    text_tokens = [
-        ["#", "1", "2"],
-        ["b", "3", "4"],
-        ["c", "5", "6"],
-    ]
+    text_tokens = [["#", "1", "2"], ["b", "3", "4"], ["c", "5", "6"]]
     gold = [text_tokens]
     text = StringIO("\n".join(" ".join([t for t in tt]) for tt in text_tokens))
     for p, g in zip(read_conll_sentences(text, comment_pattern="# comment: "), gold):
@@ -119,12 +102,7 @@ def test_read_conll_sentences_md():
 
 
 def test_read_conll_sentences_md_hash_token():
-    text_tokens = [
-        ["# This is actually a comment"],
-        ["a", "1", "2"],
-        ["#", "3", "4"],
-        ["c", "5", "6"],
-    ]
+    text_tokens = [["# This is actually a comment"], ["a", "1", "2"], ["#", "3", "4"], ["c", "5", "6"]]
     gold = [(text_tokens[1:], [text_tokens[0]])]
     text = StringIO("\n".join(" ".join([t for t in tt]) for tt in text_tokens))
     for (p, pm), (g, gm) in zip(read_conll_sentences_md(text), gold):

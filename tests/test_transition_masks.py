@@ -1,16 +1,7 @@
 import pytest
 from eight_mile.utils import transition_mask
 
-IOBv = {
-    "<PAD>": 0,
-    "<GO>": 1,
-    "<EOS>": 2,
-    "B-X": 3,
-    "I-X": 4,
-    "B-Y": 5,
-    "I-Y": 6,
-    "O": 7,
-}
+IOBv = {"<PAD>": 0, "<GO>": 1, "<EOS>": 2, "B-X": 3, "I-X": 4, "B-Y": 5, "I-Y": 6, "O": 7}
 
 BIOv = IOBv
 

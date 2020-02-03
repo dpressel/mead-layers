@@ -102,14 +102,14 @@ class LookupTableEmbeddings(TensorFlowEmbeddings):
                 self.W = self.add_weight(
                     name=f"{self.scope}/Weight",
                     shape=(self.vsz, self.dsz),
-                    initializer=tf.constant_initializer(self._weights,),
+                    initializer=tf.constant_initializer(self._weights),
                     trainable=self.finetune,
                 )
         else:
             self.W = self.add_weight(
                 name=f"{self.scope}/Weight",
                 shape=(self.vsz, self.dsz),
-                initializer=tf.constant_initializer(self._weights,),
+                initializer=tf.constant_initializer(self._weights),
                 trainable=self.finetune,
             )
         super().build(input_shape)
@@ -366,7 +366,7 @@ class SinusoidalPositionalMixin(PositionalMixin):
         log_timescale_increment = math.log(max_timescale) / float(word_dsz)
         inv_timescales = np.exp(np.arange(0, word_dsz, 2, dtype=np.float32) * -log_timescale_increment)
 
-        pe = np.zeros((mxlen, word_dsz,), dtype=np.float32)
+        pe = np.zeros((mxlen, word_dsz), dtype=np.float32)
         position = np.expand_dims(np.arange(0, mxlen, dtype=np.float32), 1)
 
         pe[:, 0::2] = np.sin(position * inv_timescales)

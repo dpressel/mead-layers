@@ -3,6 +3,7 @@ from typing import Dict
 from eight_mile.tf.layers import TransformerEncoderStack, TransformerEncoder, MultiHeadedAttention, FFN
 import tensorflow as tf
 
+
 def from_weight_array(tf_layer: tf.keras.layers.Layer, d: Dict, name: str):
     """Read in {`LayerNorm`, `Linear`, `layers.Dense`} from `weights` and `bias` fields
 
@@ -65,6 +66,7 @@ def from_embed_array(tf_embed: tf.keras.layers.Layer, d: Dict, name: str):
     """
     weights = d[f"{name}/weights"]
     tf_embed.set_weights([weights])
+
 
 def from_encoder_stack_array(tf_encoder_stack: TransformerEncoderStack, d: Dict, name: str = "TransformerEncoderStack"):
     """Restore weights from a `TransformerEncoderStack`

@@ -7,10 +7,7 @@ from eight_mile.utils import read_config_file, read_json, read_yaml, read_config
 
 @pytest.fixture
 def gold_data():
-    return {
-        "a": 1,
-        "b": {"c": 2,},
-    }
+    return {"a": 1, "b": {"c": 2}}
 
 
 @pytest.fixture

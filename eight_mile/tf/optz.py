@@ -322,30 +322,24 @@ class AdamWOptimizer(tf.compat.v1.train.Optimizer):
         return tf.group(*assignments, name=name)
 
 
-
-OPTIMIZER_SUMMARIES = [
-    "learning_rate",
-    "loss",
-    "gradients",
-    "gradient_norm",
-    "global_gradient_norm",
-]
+OPTIMIZER_SUMMARIES = ["learning_rate", "loss", "gradients", "gradient_norm", "global_gradient_norm"]
 
 
-
-def _optimize_loss(loss,
-                   global_step,
-                   learning_rate,
-                   optimizer,
-                   gradient_multipliers=None,
-                   clip_gradients=None,
-                   learning_rate_decay_fn=None,
-                   update_ops=None,
-                   variables=None,
-                   name=None,
-                   summaries=None,
-                   colocate_gradients_with_ops=False,
-                   increment_global_step=True):
+def _optimize_loss(
+    loss,
+    global_step,
+    learning_rate,
+    optimizer,
+    gradient_multipliers=None,
+    clip_gradients=None,
+    learning_rate_decay_fn=None,
+    update_ops=None,
+    variables=None,
+    name=None,
+    summaries=None,
+    colocate_gradients_with_ops=False,
+    increment_global_step=True,
+):
     """Given loss and parameters for optimizer, returns a training op.
     Various ways of passing optimizers include:
     - by string specifying the name of the optimizer. See OPTIMIZER_CLS_NAMES
@@ -441,27 +435,27 @@ def _optimize_loss(loss,
         # Learning rate variable, with possible decay.
         lr = None
         if learning_rate is not None:
-            if (isinstance(learning_rate, tf.Tensor) and
-                    learning_rate.get_shape().ndims == 0):
+            if isinstance(learning_rate, tf.Tensor) and learning_rate.get_shape().ndims == 0:
                 lr = learning_rate
             elif isinstance(learning_rate, float):
                 if learning_rate < 0.0:
                     raise ValueError("Invalid learning_rate %s.", learning_rate)
                 lr = tf.compat.v1.get_variable(
-                    "learning_rate", [],
-                    trainable=False,
-                    initializer=tf.compat.v1.constant_initializer(learning_rate))
+                    "learning_rate", [], trainable=False, initializer=tf.compat.v1.constant_initializer(learning_rate)
+                )
             else:
-                raise ValueError("Learning rate should be 0d Tensor or float. "
-                                 "Got %s of type %s" % (str(learning_rate),
-                                                        str(type(learning_rate))))
+                raise ValueError(
+                    "Learning rate should be 0d Tensor or float. "
+                    "Got %s of type %s" % (str(learning_rate), str(type(learning_rate)))
+                )
         if summaries is None:
             summaries = ["loss", "learning_rate", "global_gradient_norm"]
         else:
             for summ in summaries:
                 if summ not in OPTIMIZER_SUMMARIES:
-                    raise ValueError("Summaries should be one of [%s], you provided %s." %
-                                     (", ".join(OPTIMIZER_SUMMARIES), summ))
+                    raise ValueError(
+                        "Summaries should be one of [%s], you provided %s." % (", ".join(OPTIMIZER_SUMMARIES), summ)
+                    )
         if learning_rate is not None and learning_rate_decay_fn is not None:
             if global_step is None:
                 raise ValueError("global_step is required for learning_rate_decay_fn.")
@@ -469,12 +463,11 @@ def _optimize_loss(loss,
             if "learning_rate" in summaries:
                 tf.compat.v1.summary.scalar("learning_rate", lr)
 
-
-        elif (isinstance(optimizer, type) and
-              issubclass(optimizer, tf.compat.v1.train.Optimizer)):
+        elif isinstance(optimizer, type) and issubclass(optimizer, tf.compat.v1.train.Optimizer):
             if lr is None:
-                raise ValueError("Learning rate is None, but should be specified if "
-                                 "optimizer is class (%s)." % optimizer)
+                raise ValueError(
+                    "Learning rate is None, but should be specified if " "optimizer is class (%s)." % optimizer
+                )
             opt = optimizer(learning_rate=lr)
         elif isinstance(optimizer, tf.compat.v1.train.Optimizer):
             opt = optimizer
@@ -484,24 +477,23 @@ def _optimize_loss(loss,
             else:
                 opt = optimizer()
             if not isinstance(opt, tf.compat.v1.train.Optimizer):
-                raise ValueError("Unrecognized optimizer: function should return "
-                                 "subclass of Optimizer. Got %s." % str(opt))
+                raise ValueError(
+                    "Unrecognized optimizer: function should return " "subclass of Optimizer. Got %s." % str(opt)
+                )
         else:
-            raise ValueError("Unrecognized optimizer: should be string, "
-                             "subclass of Optimizer, instance of "
-                             "subclass of Optimizer or function with one argument. "
-                             "Got %s." % str(optimizer))
+            raise ValueError(
+                "Unrecognized optimizer: should be string, "
+                "subclass of Optimizer, instance of "
+                "subclass of Optimizer or function with one argument. "
+                "Got %s." % str(optimizer)
+            )
 
         # All trainable variables, if specific variables are not specified.
         if variables is None:
             variables = tf.compat.v1.trainable_variables()
 
         # Compute gradients.
-        gradients = opt.compute_gradients(
-            loss,
-            variables,
-            colocate_gradients_with_ops=colocate_gradients_with_ops)
-
+        gradients = opt.compute_gradients(loss, variables, colocate_gradients_with_ops=colocate_gradients_with_ops)
 
         # Multiply some gradients.
         if gradient_multipliers is not None:
@@ -509,7 +501,8 @@ def _optimize_loss(loss,
             if not gradients:
                 raise ValueError(
                     "Empty list of (gradient, var) pairs encountered. This is most "
-                    "likely to be caused by an improper value of gradient_multipliers.")
+                    "likely to be caused by an improper value of gradient_multipliers."
+                )
 
         if "global_gradient_norm" in summaries or "gradient_norm" in summaries:
             tf.compat.v1.summary.scalar("global_norm/gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
@@ -520,8 +513,7 @@ def _optimize_loss(loss,
         elif callable(clip_gradients):
             gradients = clip_gradients(gradients)
         elif clip_gradients is not None:
-            raise ValueError(
-                "Unknown type %s for clip_gradients" % type(clip_gradients))
+            raise ValueError("Unknown type %s for clip_gradients" % type(clip_gradients))
 
         # Add scalar summary for loss.
         if "loss" in summaries:
@@ -541,15 +533,15 @@ def _optimize_loss(loss,
                 if "gradient_norm" in summaries:
                     tf.compat.v1.summary.scalar("gradient_norm/%s" % var_name, tf.linalg.global_norm([grad_values]))
 
-        if clip_gradients is not None and ("global_gradient_norm" in summaries or
-                                           "gradient_norm" in summaries):
-            tf.compat.v1.summary.scalar("global_norm/clipped_gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0]))
+        if clip_gradients is not None and ("global_gradient_norm" in summaries or "gradient_norm" in summaries):
+            tf.compat.v1.summary.scalar(
+                "global_norm/clipped_gradient_norm", tf.linalg.global_norm(list(zip(*gradients))[0])
+            )
 
         # Create gradient updates.
         grad_updates = opt.apply_gradients(
-            gradients,
-            global_step=global_step if increment_global_step else None,
-            name="train")
+            gradients, global_step=global_step if increment_global_step else None, name="train"
+        )
 
         # Ensure the train_tensor computes grad_updates.
         # train_tensor = tf.compat.v1.with_dependencies([grad_updates], loss)
@@ -570,8 +562,7 @@ def _multiply_gradients(grads_and_vars, gradient_multipliers):
     """Multiply specified gradients."""
     multiplied_grads_and_vars = []
     for grad, var in grads_and_vars:
-        if (grad is not None and
-                (var in gradient_multipliers or var.name in gradient_multipliers)):
+        if grad is not None and (var in gradient_multipliers or var.name in gradient_multipliers):
             key = var if var in gradient_multipliers else var.name
             multiplier = gradient_multipliers[key]
             if isinstance(grad, tf.IndexedSlices):
@@ -581,6 +572,7 @@ def _multiply_gradients(grads_and_vars, gradient_multipliers):
                 grad *= tf.cast(multiplier, grad.dtype)
         multiplied_grads_and_vars.append((grad, var))
     return multiplied_grads_and_vars
+
 
 @export
 def optimizer(loss_fn, **kwargs):

@@ -4,6 +4,7 @@ import numpy as np
 from typing import Dict
 from eight_mile.pytorch.layers import Dense, TransformerEncoderStack, TransformerEncoder, MultiHeadedAttention
 
+
 def to_weight_array(pytorch_layer: nn.Module, name: str) -> Dict:
     """Convert a {`LayerNorm`, `Linear`, `layers.Dense`} to `weights` and `bias` arrays
 
@@ -17,6 +18,7 @@ def to_weight_array(pytorch_layer: nn.Module, name: str) -> Dict:
     bias = pytorch_layer.bias.cpu().detach().numpy()
     return {f"{name}/weights": weights, f"{name}/bias": bias}
 
+
 def from_weight_array(pytorch_layer: nn.Module, d: Dict, name: str):
     """Read in {`LayerNorm`, `Linear`, `layers.Dense`} from `weights` and `bias` fields
 
@@ -29,6 +31,7 @@ def from_weight_array(pytorch_layer: nn.Module, d: Dict, name: str):
         pytorch_layer = pytorch_layer.layer
     pytorch_layer.weight = nn.Parameter(torch.from_numpy(d[f"{name}/weights"]), requires_grad=True)
     pytorch_layer.bias = nn.Parameter(torch.from_numpy(d[f"{name}/bias"]), requires_grad=True)
+
 
 def to_ffn_array(pytorch_ffn: nn.Sequential, name: str) -> Dict:
     """Convert a `FFN` layer to a set of arrays
@@ -98,6 +101,7 @@ def to_encoder_array(pytorch_encoder: TransformerEncoder, name: str) -> Dict:
     d.update(to_ffn_array(pytorch_encoder.ffn, f"{name}/ffn"))
     return d
 
+
 def from_encoder_array(pytorch_encoder: TransformerEncoder, d: Dict, name: str):
     """Restore a `TransformerEncoder` layer from a set of numpy arrays
 
@@ -111,6 +115,7 @@ def from_encoder_array(pytorch_encoder: TransformerEncoder, d: Dict, name: str):
     from_mha_array(pytorch_encoder.self_attn, d, f"{name}/mha")
     from_ffn_array(pytorch_encoder.ffn, d, f"{name}/ffn")
 
+
 def to_embed_array(pytorch_embed: nn.Module, name: str) -> Dict:
     """Convert a simple lookup table embedding to a `weights` array
 
@@ -120,6 +125,7 @@ def to_embed_array(pytorch_embed: nn.Module, name: str) -> Dict:
     """
     weights = pytorch_embed.weight.cpu().detach().numpy()
     return {f"{name}/weights": weights}
+
 
 def from_embed_array(pytorch_embed: nn.Module, d: Dict, name: str):
     """Restore a simple lookup table embedding from a `weights` array
@@ -142,7 +148,9 @@ def to_tlm_array(pytorch_tlm: nn.Module, embeddings_key: str = 'x', name: str = 
     """
     d = {}
     d.update(to_encoder_stack_array(pytorch_tlm.transformer, name=f"{name}/TransformerEncoderStack"))
-    d.update(to_embed_array(pytorch_tlm.embeddings[embeddings_key].embeddings, name=f"{name}/SinusoidalPositionalEmbeddings"))
+    d.update(
+        to_embed_array(pytorch_tlm.embeddings[embeddings_key].embeddings, name=f"{name}/SinusoidalPositionalEmbeddings")
+    )
     return d
 
 
@@ -159,7 +167,10 @@ def save_tlm_npz(pytorch_tlm: nn.Module, npz: str, embeddings_key: str = 'x', na
     print(d.keys())
     np.savez(npz, **d)
 
-def to_encoder_stack_array(pytorch_encoder_stack: TransformerEncoderStack, name: str = "TransformerEncoderStack") -> Dict:
+
+def to_encoder_stack_array(
+    pytorch_encoder_stack: TransformerEncoderStack, name: str = "TransformerEncoderStack"
+) -> Dict:
     """Convert a `TransformerEncoderStack` to a set of weigths
 
     :param pytorch_encoder_stack: A transformer encoder stack
@@ -173,7 +184,9 @@ def to_encoder_stack_array(pytorch_encoder_stack: TransformerEncoderStack, name:
     return d
 
 
-def from_encoder_stack_array(pytorch_encoder_stack: TransformerEncoderStack, d: Dict, name: str = "TransformerEncoderStack"):
+def from_encoder_stack_array(
+    pytorch_encoder_stack: TransformerEncoderStack, d: Dict, name: str = "TransformerEncoderStack"
+):
     """Restore weights from a `TransformerEncoderStack`
 
     :param pytorch_encoder_stack: A transformer encoder stack

@@ -2091,6 +2091,7 @@ class TransformerEncoder(nn.Module):
         d_ff: Optional[int] = None,
         d_k: Optional[int] = None,
         rpr_k: Optional[int] = None,
+        ffn_pdrop: Optional[float] = 0.0,
     ):
         super().__init__()
         self.d_model = d_model
@@ -2102,7 +2103,7 @@ class TransformerEncoder(nn.Module):
         self.ffn = nn.Sequential(
             Dense(self.d_model, self.d_ff),
             get_activation(activation_type),
-            ##nn.Dropout(pdrop),
+            nn.Dropout(ffn_pdrop),
             Dense(self.d_ff, self.d_model),
         )
         self.ln1 = nn.LayerNorm(self.d_model, eps=1e-6)
@@ -2136,14 +2137,19 @@ class TransformerDecoder(nn.Module):
         scale: bool = True,
         activation_type: str = "relu",
         d_ff: Optional[int] = None,
+        ffn_pdrop: Optional[float] = 0.0,
     ):
         super().__init__()
         self.d_model = d_model
         self.d_ff = d_ff if d_ff is not None else 4 * d_model
         self.self_attn = MultiHeadedAttention(num_heads, self.d_model, pdrop, scale=scale)
         self.src_attn = MultiHeadedAttention(num_heads, self.d_model, pdrop, scale=scale)
+
         self.ffn = nn.Sequential(
-            Dense(self.d_model, self.d_ff), get_activation(activation_type), Dense(self.d_ff, self.d_model)
+            Dense(self.d_model, self.d_ff),
+            nn.Dropout(ffn_pdrop),
+            get_activation(activation_type),
+            Dense(self.d_ff, self.d_model),
         )
 
         self.ln1 = nn.LayerNorm(self.d_model, eps=1e-6)
@@ -2177,6 +2183,7 @@ class TransformerEncoderStack(nn.Module):
         d_ff: Optional[int] = None,
         d_k: Optional[int] = None,
         rpr_k: Optional[Union[int, List[int]]] = None,
+        ffn_pdrop: Optional[float] = 0.0,
         **kwargs,
     ):
         super().__init__()
@@ -2189,7 +2196,9 @@ class TransformerEncoderStack(nn.Module):
 
         for i in range(layers):
             self.encoders.append(
-                TransformerEncoder(num_heads, d_model, pdrop, scale, activation, d_ff, d_k, rpr_k=rpr_k[i])
+                TransformerEncoder(
+                    num_heads, d_model, pdrop, scale, activation, d_ff, d_k, rpr_k=rpr_k[i], ffn_pdrop=ffn_pdrop
+                )
             )
 
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
@@ -2228,18 +2237,18 @@ class TransformerEncoderStackWithLengths(TransformerEncoderStack):
 
 class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
     def __init__(
-            self,
-            num_heads: int,
-            d_model: int,
-            pdrop: bool,
-            scale: bool = True,
-            layers: int = 1,
-            activation: str = "relu",
-            d_ff: Optional[int] = None,
-            d_k: Optional[int] = None,
-            rpr_k: Optional[Union[int, List[int]]] = None,
-            input_sz: Optional[int] = None,
-            **kwargs,
+        self,
+        num_heads: int,
+        d_model: int,
+        pdrop: bool,
+        scale: bool = True,
+        layers: int = 1,
+        activation: str = "relu",
+        d_ff: Optional[int] = None,
+        d_k: Optional[int] = None,
+        rpr_k: Optional[Union[int, List[int]]] = None,
+        input_sz: Optional[int] = None,
+        **kwargs,
     ):
         super().__init__(num_heads, d_model, pdrop, scale, layers, activation, d_ff, d_k, rpr_k)
         self.proj = WithDropout(pytorch_linear(input_sz, d_model), pdrop)
@@ -2262,12 +2271,15 @@ class TransformerDecoderStack(nn.Module):
         layers: int = 1,
         activation_type: str = "relu",
         d_ff: Optional[int] = None,
+        ffn_pdrop: Optional[float] = 0.0,
     ):
         super().__init__()
         self.decoders = nn.ModuleList()
         self.ln = nn.LayerNorm(d_model, eps=1e-6)
         for i in range(layers):
-            self.decoders.append(TransformerDecoder(num_heads, d_model, pdrop, scale, activation_type, d_ff))
+            self.decoders.append(
+                TransformerDecoder(num_heads, d_model, pdrop, scale, activation_type, d_ff, ffn_pdrop=ffn_pdrop)
+            )
 
     def forward(self, inputs):
         x, memory, src_mask, tgt_mask = inputs
@@ -2500,5 +2512,3 @@ class BeamSearchBase:
         # Slice off the Offsets.GO token
         paths = paths[:, :, 1:]
         return paths, lengths, best_scores
-
-

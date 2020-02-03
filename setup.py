@@ -37,7 +37,7 @@ def main():
         download_url=About.DOWNLOAD_URL,
         packages=find_packages(exclude=["tests"]),
         include_package_data=False,
-        install_requires=["numpy",],
+        install_requires=["numpy"],
         extras_require={
             "test": ["pytest", "mock", "contextdecorator", "pytest-forked"],
             "yaml": ["pyyaml"],

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from eight_mile.utils import listify, Offsets, wraps, get_version, is_sequence
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict, Any, Tuple
 
 import math
 
@@ -133,7 +133,7 @@ def bth2tbh(t):
 
 
 # Mapped
-def get_activation(name="relu"):
+def get_activation(name: str = "relu"):
     if name is None or name == "ident":
         return tf.nn.identity
     if name == "softmax":
@@ -154,7 +154,7 @@ def get_activation(name="relu"):
 
 # Mapped
 class ConvEncoder(tf.keras.layers.Layer):
-    def __init__(self, insz, outsz, filtsz, pdrop, activation="relu"):
+    def __init__(self, insz: Optional[int], outsz: int, filtsz: int, pdrop: float, activation: str = "relu"):
         super().__init__()
         self.output_dim = outsz
         self.conv = tf.keras.layers.Conv1D(filters=outsz, kernel_size=filtsz, padding="same")
@@ -168,7 +168,9 @@ class ConvEncoder(tf.keras.layers.Layer):
 
 # Mapped
 class ConvEncoderStack(tf.keras.layers.Layer):
-    def __init__(self, insz, outsz, filtsz, pdrop, layers=1, activation="relu"):
+    def __init__(
+        self, insz: Optional[int], outsz: int, filtsz: int, pdrop: float, layers: int = 1, activation: str = "relu"
+    ):
         super().__init__()
 
         first_layer = ConvEncoder(insz, outsz, filtsz, pdrop, activation)
@@ -189,13 +191,22 @@ class ParallelConv(tf.keras.layers.Layer):
     TIME_AXIS = 2
     FEATURE_AXIS = 3
 
-    def __init__(self, insz, outsz, filtsz, activation="relu", name=None, **kwargs):
+    def __init__(
+        self,
+        insz: Optional[int],
+        outsz: Union[int, List[int]],
+        filtsz: List[int],
+        activation: str = "relu",
+        name: Optional[str] = None,
+        **kwargs,
+    ):
         """Do parallel convolutions with multiple filter widths and max-over-time pooling.
 
+        :param insz: The input size (not required, can pass `None`)
+        :param outsz: The output size(s).  Normally this is an int, but it can be a stack of them
         :param filtsz: The list of filter widths to use.
-        :param dsz: The depths of the input (H).
-        :param motsz: The number of conv filters to use (can be an int or a list to allow for various sized filters)
         :param activation: (``str``) The name of the activation function to use (`default='relu`)
+        :param name: An optional name
         """
         super().__init__(name=name)
         self.Ws = []
@@ -238,7 +249,7 @@ class ParallelConv(tf.keras.layers.Layer):
         return False
 
 
-def lstm_cell(hsz, forget_bias=1.0, **kwargs):
+def lstm_cell(hsz: int, forget_bias: float = 1.0, **kwargs):
     """Produce a single cell with no dropout
     :param hsz: (``int``) The number of hidden units per LSTM
     :param forget_bias: (``int``) Defaults to 1
@@ -252,7 +263,9 @@ def lstm_cell(hsz, forget_bias=1.0, **kwargs):
     return tf.nn.rnn_cell.ResidualWrapper(cell) if skip_conn else cell
 
 
-def lstm_cell_w_dropout(hsz, pdrop, forget_bias=1.0, variational=False, training=False, **kwargs):
+def lstm_cell_w_dropout(
+    hsz: int, pdrop: float, forget_bias: float = 1.0, variational: bool = False, training: bool = False, **kwargs
+):
     """Produce a single cell with dropout
     :param hsz: (``int``) The number of hidden units per LSTM
     :param pdrop: (``int``) The probability of keeping a unit value during dropout
@@ -282,21 +295,21 @@ def lstm_cell_w_dropout(hsz, pdrop, forget_bias=1.0, variational=False, training
 class LSTMEncoder2(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
-
-        :param hsz: (``int``) The number of hidden units per LSTM
+        :param insz: An optional input size for parity with other layer backends.  Can pass `None`
+        :param hsz: The number of hidden units per LSTM
         :param nlayers: (``int``) The number of layers of LSTMs to stack
         :param pdrop: (``int``) The probability of dropping a unit value during dropout
         :param variational: (``bool``) variational recurrence is on
@@ -348,22 +361,22 @@ class LSTMEncoder2(tf.keras.layers.Layer):
         return self.output_fn(rnnout, (h, c))
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return self._requires_length
 
 
 class LSTMEncoderWithState2(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(name=name)
@@ -414,7 +427,7 @@ class LSTMEncoderWithState2(tf.keras.layers.Layer):
             inputs = outputs
         return outputs, hidden_outputs
 
-    def zero_state(self, batchsz):
+    def zero_state(self, batchsz: int):
         num_rnns = len(self.rnns)
         zstate = []
         for i, _ in enumerate(self.rnns):
@@ -428,16 +441,16 @@ class LSTMEncoderWithState2(tf.keras.layers.Layer):
 class LSTMEncoderSequence2(LSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -467,16 +480,16 @@ class LSTMEncoderSequence2(LSTMEncoder2):
 class LSTMEncoderHidden2(LSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: float = False,
+        requires_length: float = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -506,16 +519,16 @@ class LSTMEncoderHidden2(LSTMEncoder2):
 class LSTMEncoderHiddenContext2(LSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -545,16 +558,16 @@ class LSTMEncoderHiddenContext2(LSTMEncoder2):
 class LSTMEncoder1(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
@@ -616,16 +629,16 @@ class LSTMEncoder1(tf.keras.layers.Layer):
 class LSTMEncoderSequence1(LSTMEncoder1):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: str = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: bool = None,
         **kwargs,
     ):
         super().__init__(
@@ -664,18 +677,19 @@ class LSTMEncoderAll1(LSTMEncoder1):
 
 
 class LSTMEncoderHidden1(LSTMEncoder1):
+    # TODO: constructor is unnecessary
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: str = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -705,16 +719,16 @@ class LSTMEncoderHidden1(LSTMEncoder1):
 class LSTMEncoderHiddenContext1(LSTMEncoder1):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: Optional[float] = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -743,7 +757,15 @@ class LSTMEncoderHiddenContext1(LSTMEncoder1):
 
 class LSTMEncoderWithState1(LSTMEncoder1):
     def __init__(
-        self, insz, hsz, nlayers, pdrop=0.0, variational=False, name=None, dropout_in_single_layer=True, **kwargs
+        self,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = True,
+        **kwargs,
     ):
         super().__init__(
             insz=insz,
@@ -758,7 +780,7 @@ class LSTMEncoderWithState1(LSTMEncoder1):
         )
         self.requires_state = True
 
-    def zero_state(self, batchsz):
+    def zero_state(self, batchsz: int):
         return self.rnn.zero_state(batchsz, tf.float32)
 
     def call(self, inputs):
@@ -771,16 +793,16 @@ class LSTMEncoderWithState1(LSTMEncoder1):
 class LSTMEncoderAll2(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
         dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(name=name)
@@ -848,16 +870,16 @@ class LSTMEncoderAll2(tf.keras.layers.Layer):
 class BiLSTMEncoderAll2(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(name=name)
@@ -920,7 +942,7 @@ class BiLSTMEncoderAll2(tf.keras.layers.Layer):
         return self.output_fn(outputs, (h, c))
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return self._requires_length
 
 
@@ -928,16 +950,16 @@ class BiLSTMEncoderAll2(tf.keras.layers.Layer):
 class BiLSTMEncoder2(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(name=name)
@@ -997,16 +1019,16 @@ class BiLSTMEncoder2(tf.keras.layers.Layer):
 class BiLSTMEncoderSequence2(BiLSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -1030,16 +1052,16 @@ class BiLSTMEncoderSequence2(BiLSTMEncoder2):
 class BiLSTMEncoderHidden2(BiLSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -1063,16 +1085,16 @@ class BiLSTMEncoderHidden2(BiLSTMEncoder2):
 class BiLSTMEncoderHiddenContext2(BiLSTMEncoder2):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        dropout_in_single_layer=False,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        dropout_in_single_layer: bool = False,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -1097,15 +1119,15 @@ class BiLSTMEncoderHiddenContext2(BiLSTMEncoder2):
 class BiLSTMEncoder1(tf.keras.layers.Layer):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
@@ -1175,7 +1197,7 @@ class BiLSTMEncoder1(tf.keras.layers.Layer):
         )
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return self._requires_length
 
 
@@ -1201,15 +1223,15 @@ class BiLSTMEncoderAll1(BiLSTMEncoder1):
 class BiLSTMEncoderSequence1(BiLSTMEncoder1):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
@@ -1230,15 +1252,15 @@ class BiLSTMEncoderSequence1(BiLSTMEncoder1):
 class BiLSTMEncoderHidden1(BiLSTMEncoder1):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
@@ -1259,15 +1281,15 @@ class BiLSTMEncoderHidden1(BiLSTMEncoder1):
 class BiLSTMEncoderHiddenContext1(BiLSTMEncoder1):
     def __init__(
         self,
-        insz,
-        hsz,
-        nlayers,
-        pdrop=0.0,
-        variational=False,
-        requires_length=True,
-        name=None,
-        skip_conn=False,
-        projsz=None,
+        insz: Optional[int],
+        hsz: int,
+        nlayers: int,
+        pdrop: float = 0.0,
+        variational: bool = False,
+        requires_length: bool = True,
+        name: Optional[str] = None,
+        skip_conn: bool = False,
+        projsz: Optional[int] = None,
         **kwargs,
     ):
         """Produce a stack of LSTMs with dropout performed on all but the last layer.
@@ -1341,7 +1363,14 @@ else:
 
 
 class EmbeddingsStack(tf.keras.layers.Layer):
-    def __init__(self, embeddings_dict, dropout_rate=0.0, requires_length=False, name=None, **kwargs):
+    def __init__(
+        self,
+        embeddings_dict: Dict[str, tf.keras.layers.Layer],
+        dropout_rate: float = 0.0,
+        requires_length: bool = False,
+        name: Optional[str] = None,
+        **kwargs,
+    ):
         """Takes in a dictionary where the keys are the input tensor names, and the values are the embeddings
 
         :param embeddings_dict: (``dict``) dictionary of each feature embedding
@@ -1370,18 +1399,18 @@ class EmbeddingsStack(tf.keras.layers.Layer):
         return self.dropout(word_embeddings, TRAIN_FLAG())
 
     @property
-    def dsz(self):
+    def dsz(self) -> int:
         total_dsz = 0
         for embeddings in self.embeddings.values():
             total_dsz += embeddings.get_dsz()
         return total_dsz
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return self.requires_length
 
     @property
-    def output_dim(self):
+    def output_dim(self) -> bool:
         return self.dsz
 
 
@@ -1413,7 +1442,16 @@ class WeightTieDense(tf.keras.layers.Layer):
 
 
 class DenseStack(tf.keras.layers.Layer):
-    def __init__(self, insz, hsz, activation="relu", pdrop_value=0.5, init=None, name=None, **kwargs):
+    def __init__(
+        self,
+        insz: Optional[int],
+        hsz: int,
+        activation: str = "relu",
+        pdrop_value: float = 0.5,
+        init: Optional[Any] = None,
+        name: Optional[str] = None,
+        **kwargs,
+    ):
         """Stack 1 or more hidden layers, optionally (forming an MLP)
 
         :param hsz: (``int``) The number of hidden units
@@ -1447,12 +1485,12 @@ class DenseStack(tf.keras.layers.Layer):
         return x
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return False
 
 
 class WithDropout(tf.keras.layers.Layer):
-    def __init__(self, layer, pdrop=0.5):
+    def __init__(self, layer: tf.keras.layers.Layer, pdrop: float = 0.5):
         super(WithDropout, self).__init__()
         self.layer = layer
         self.dropout = tf.keras.layers.Dropout(pdrop)
@@ -1461,13 +1499,13 @@ class WithDropout(tf.keras.layers.Layer):
         return self.dropout(self.layer(inputs), TRAIN_FLAG())
 
     @property
-    def output_dim(self):
+    def output_dim(self) -> int:
         return self.layer.output_dim
 
 
 class Highway(tf.keras.layers.Layer):
-    def __init__(self, input_size, name=None, **kwargs):
-        super(Highway, self).__init__(name=name)
+    def __init__(self, input_size: int, name: Optional[str] = None, **kwargs):
+        super().__init__(name=name)
         self.proj = tf.keras.layers.Dense(input_size, activation="relu")
         self.transform = tf.keras.layers.Dense(
             input_size, bias_initializer=tf.keras.initializers.Constant(value=-2.0), activation="sigmoid"
@@ -1485,26 +1523,28 @@ class Highway(tf.keras.layers.Layer):
 
 
 class ResidualBlock(tf.keras.layers.Layer):
-    def __init__(self, layer=None, name=None, **kwargs):
-        super(ResidualBlock, self).__init__(name=name)
+    def __init__(self, layer: Optional[tf.keras.layers.Layer] = None, name: Optional[str] = None, **kwargs):
+        super().__init__(name=name)
         self.layer = layer
 
     def call(self, inputs):
         return inputs + self.layer(inputs)
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return False
 
 
 class SkipConnection(ResidualBlock):
-    def __init__(self, input_size, activation="relu"):
+    def __init__(self, input_size: int, activation: str = "relu"):
         super(SkipConnection, self).__init__(tf.keras.layers.Dense(input_size, activation=activation))
 
 
 class TimeDistributedProjection(tf.keras.layers.Layer):
     def __init__(self, num_outputs, name=None):
         """Set up a low-order projection (embedding) by flattening the batch and time dims and matmul
+
+        TODO: Avoid where possible, Dense should work in most cases
 
         :param name: The name for this scope
         :param num_outputs: The number of feature maps out
@@ -1537,12 +1577,12 @@ class TimeDistributedProjection(tf.keras.layers.Layer):
         return input_shape[0], self.output_dim
 
     @property
-    def requires_length(self):
+    def requires_length(self) -> bool:
         return False
 
 
 class SequenceSequenceAttention(tf.keras.layers.Layer):
-    def __init__(self, hsz=None, pdrop=0.1, name=None):
+    def __init__(self, hsz: Optional[int] = None, pdrop: float = 0.1, name: str = None):
         super().__init__(name=name)
         self.hsz = hsz
         self.dropout = tf.keras.layers.Dropout(pdrop)
@@ -1572,7 +1612,7 @@ class SequenceSequenceAttention(tf.keras.layers.Layer):
 
 
 class SeqScaledDotProductAttention(SequenceSequenceAttention):
-    def __init__(self, pdrop=0.1, name="scaled_dot_product_attention", **kwargs):
+    def __init__(self, pdrop: float = 0.1, name: str = "scaled_dot_product_attention", **kwargs):
         super().__init__(pdrop, name=name, **kwargs)
 
     def _attention(self, query, key, mask=None):
@@ -1640,7 +1680,7 @@ class SequenceSequenceRelativeAttention(tf.keras.layers.Layer):
 
 
 class SeqScaledDotProductRelativeAttention(SequenceSequenceRelativeAttention):
-    def __init__(self, pdrop=0.1, name="scaled_dot_product_rel_attention", **kwargs):
+    def __init__(self, pdrop: float = 0.1, name: str = "scaled_dot_product_rel_attention", **kwargs):
         super().__init__(pdrop=pdrop, name=name, **kwargs)
 
     def _attention(self, query, key, edges_key, mask=None):
@@ -1673,7 +1713,7 @@ class SeqScaledDotProductRelativeAttention(SequenceSequenceRelativeAttention):
 
 
 class SeqDotProductRelativeAttention(SequenceSequenceRelativeAttention):
-    def __init__(self, pdrop=0.1, name="dot_product_rel_attention", **kwargs):
+    def __init__(self, pdrop: float = 0.1, name: str = "dot_product_rel_attention", **kwargs):
         super().__init__(pdrop=pdrop, name=name, **kwargs)
 
     def _attention(self, query, key, edges_key, mask=None):
@@ -1706,7 +1746,7 @@ class SeqDotProductRelativeAttention(SequenceSequenceRelativeAttention):
 
 
 class SeqDotProductAttention(SequenceSequenceAttention):
-    def __init__(self, pdrop=0.1, name="dot_product_attention", **kwargs):
+    def __init__(self, pdrop: float = 0.1, name: str = "dot_product_attention", **kwargs):
         super().__init__(pdrop, name=name, **kwargs)
 
     def _attention(self, query, key, mask=None):
@@ -1740,7 +1780,15 @@ class MultiHeadedAttention(tf.keras.layers.Layer):
     future values
     """
 
-    def __init__(self, num_heads, d_model, dropout=0.1, scale=False, d_k=None, name=None):
+    def __init__(
+        self,
+        num_heads: int,
+        d_model: int,
+        dropout: float = 0.1,
+        scale: bool = False,
+        d_k: Optional[int] = None,
+        name: str = None,
+    ):
         """Constructor for multi-headed attention
 
         :param h: The number of heads
@@ -1838,7 +1886,7 @@ class MultiHeadedRelativeAttention(tf.keras.layers.Layer):
             self.attn_fn = SeqDotProductRelativeAttention(dropout)
         self.attn = None
 
-    def make_rpr(self, seq_len):
+    def make_rpr(self, seq_len: int):
         """Create a matrix shifted by self.rpr_k and bounded between 0 and 2*self.rpr_k to provide 0-based indexing for embedding
         """
         seq = tf.range(seq_len)
@@ -1886,7 +1934,8 @@ class TransformerEncoder(tf.keras.layers.Layer):
         d_ff: Optional[int] = None,
         d_k: Optional[int] = None,
         rpr_k: Optional[int] = None,
-        name=None,
+        ffn_pdrop: Optional[float] = 0.0,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self.d_model = d_model
@@ -1896,7 +1945,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         else:
             self.self_attn = MultiHeadedAttention(num_heads, d_model, pdrop, scale=scale, d_k=d_k)
 
-        self.ffn = FFN(d_model, pdrop, activation_type, d_ff, name="ffn")
+        self.ffn = FFN(d_model, activation_type, d_ff, pdrop=ffn_pdrop, name="ffn")
         self.ln1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         self.ln2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         self.dropout = tf.keras.layers.Dropout(pdrop)
@@ -1918,13 +1967,23 @@ class TransformerEncoder(tf.keras.layers.Layer):
 
 
 class TransformerDecoder(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, pdrop, scale=True, activation_type="relu", d_ff=None, name=None):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        pdrop: float,
+        scale: bool = True,
+        activation_type: str = "relu",
+        d_ff: Optional[int] = None,
+        ffn_pdrop: float = 0.0,
+        name: str = None,
+    ):
         super().__init__(name=name)
         self.d_model = d_model
         self.d_ff = d_ff if d_ff is not None else 4 * d_model
         self.self_attn = MultiHeadedAttention(num_heads, self.d_model, pdrop, scale=scale, name="self_attention")
         self.src_attn = MultiHeadedAttention(num_heads, self.d_model, pdrop, scale=scale, name="src_attention")
-        self.ffn = FFN(d_model, pdrop, activation_type, d_ff, name="ffn")
+        self.ffn = FFN(d_model, ffn_pdrop, activation_type, d_ff, name="ffn")
         self.ln1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         self.ln2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         self.ln3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -1955,6 +2014,7 @@ class TransformerEncoderStack(tf.keras.layers.Layer):
         d_ff: Optional[int] = None,
         d_k: Optional[int] = None,
         rpr_k: Optional[Union[int, List[int]]] = None,
+        ffn_pdrop: Optional[float] = 0.0,
         name=None,
         **kwargs,
     ):
@@ -1968,7 +2028,18 @@ class TransformerEncoderStack(tf.keras.layers.Layer):
 
         for i in range(layers):
             self.encoders.append(
-                TransformerEncoder(num_heads, d_model, pdrop, scale, activation, d_ff, d_k, rpr_k=rpr_k[i], name=name)
+                TransformerEncoder(
+                    num_heads,
+                    d_model,
+                    pdrop,
+                    scale,
+                    activation,
+                    d_ff,
+                    d_k,
+                    rpr_k=rpr_k[i],
+                    ffn_pdrop=ffn_pdrop,
+                    name=name,
+                )
             )
 
     def call(self, inputs):
@@ -1990,7 +2061,7 @@ class TransformerEncoderStackWithLengths(TransformerEncoderStack):
         d_ff: Optional[int] = None,
         d_k: Optional[int] = None,
         rpr_k: Optional[Union[int, List[int]]] = None,
-        name=None,
+        name: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(num_heads, d_model, pdrop, scale, layers, activation, d_ff, d_k, rpr_k, name=name)
@@ -2006,18 +2077,18 @@ class TransformerEncoderStackWithLengths(TransformerEncoderStack):
 
 class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
     def __init__(
-            self,
-            num_heads: int,
-            d_model: int,
-            pdrop: bool,
-            scale: bool = True,
-            layers: int = 1,
-            activation: str = "relu",
-            d_ff: Optional[int] = None,
-            d_k: Optional[int] = None,
-            rpr_k: Optional[Union[int, List[int]]] = None,
-            name=None,
-            **kwargs,
+        self,
+        num_heads: int,
+        d_model: int,
+        pdrop: bool,
+        scale: bool = True,
+        layers: int = 1,
+        activation: str = "relu",
+        d_ff: Optional[int] = None,
+        d_k: Optional[int] = None,
+        rpr_k: Optional[Union[int, List[int]]] = None,
+        name: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(num_heads, d_model, pdrop, scale, layers, activation, d_ff, d_k, rpr_k, name=name)
         self.proj = WithDropout(tf.keras.layers.Dense(d_model), pdrop)
@@ -2032,13 +2103,25 @@ class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
 
 class TransformerDecoderStack(tf.keras.layers.Layer):
     def __init__(
-        self, d_model, num_heads, pdrop, scale=True, layers=1, activation="relu", d_ff=None, name=None, **kwargs
+        self,
+        d_model: int,
+        num_heads: int,
+        pdrop: float,
+        scale: bool = True,
+        layers: int = 1,
+        activation: str = "relu",
+        d_ff: Optional[int] = None,
+        ffn_pdrop: float = 0.0,
+        name: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(name=name)
         self.decoders = []
         self.ln = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         for i in range(layers):
-            self.decoders.append(TransformerDecoder(d_model, num_heads, pdrop, scale, activation, d_ff))
+            self.decoders.append(
+                TransformerDecoder(d_model, num_heads, pdrop, scale, activation, d_ff, ffn_pdrop=ffn_pdrop)
+            )
 
     def call(self, inputs):
         x, memory, src_mask, tgt_mask = inputs
@@ -2049,17 +2132,19 @@ class TransformerDecoderStack(tf.keras.layers.Layer):
 
 class FFN(tf.keras.layers.Layer):
     """
-    FFN from https://arxiv.org/abs/1706.03762 via http://nlp.seas.harvard.edu/2018/04/03/attention.html
+    FFN from https://arxiv.org/abs/1706.03762
 
-    The `FFN` layer is block in the Transformer that follows multi-headed self-attention.  It consists
-    of an expansion from `d_model` to `d_ff` (with sub-sequent relu and dropout), followed by a squeeze
-    layer that pushes it back to `d_model`.  In the `tensor2tensor` codebase, this is implemented as convolution of
-    size 1 over the temporal sequence, which is equivalent, but in PyTorch, we dont need to do anything explicitly,
-    thanks to https://github.com/pytorch/pytorch/pull/1935!
-
+    The paper does not specify any dropout in this layer, but subsequent implementations (like XLM) do use dropout.
     """
 
-    def __init__(self, d_model, pdrop, activation="relu", d_ff=None, name=None):
+    def __init__(
+        self,
+        d_model: int,
+        pdrop: float,
+        activation: str = "relu",
+        d_ff: Optional[int] = None,
+        name: Optional[int] = None,
+    ):
         """Constructor, takes in model size (which is the external currency of each block) and the feed-forward size
 
         :param d_model: The model size.  This is the size passed through each block
@@ -2071,15 +2156,15 @@ class FFN(tf.keras.layers.Layer):
             d_ff = 4 * d_model
         self.expansion = tf.keras.layers.Dense(d_ff)
         self.squeeze = tf.keras.layers.Dense(d_model)
-        ##self.dropout = tf.keras.layers.Dropout(pdrop)
+        self.dropout = tf.keras.layers.Dropout(pdrop)
         self.act = tf.keras.layers.Activation(activation)
 
     def call(self, inputs):
-        return self.squeeze(self.act(self.expansion(inputs)))
+        return self.squeeze(self.dropout(self.act(self.expansion(inputs))))
 
 
 class TaggerGreedyDecoder(tf.keras.layers.Layer):
-    def __init__(self, num_tags, constraint_mask=None, name=None):
+    def __init__(self, num_tags: int, constraint_mask: Optional[Tuple[Any, Any]] = None, name: Optional[str] = None):
         super().__init__(name=name)
         self.num_tags = num_tags
         self.inv_mask = None
@@ -2123,7 +2208,7 @@ class TaggerGreedyDecoder(tf.keras.layers.Layer):
 
 
 class CRF(tf.keras.layers.Layer):
-    def __init__(self, num_tags, constraint_mask=None, name=None):
+    def __init__(self, num_tags: int, constraint_mask: Optional[Tuple[Any, Any]] = None, name: Optional[str] = None):
         """Initialize the object.
         :param num_tags: int, The number of tags in your output (emission size)
         :param constraint_mask: torch.ByteTensor, Constraints on the transitions [1, N, N]
@@ -2203,7 +2288,16 @@ class CRF(tf.keras.layers.Layer):
 
 
 class MeanPool1D(tf.keras.layers.Layer):
-    def __init__(self, dsz, trainable=False, name=None, dtype=tf.float32, batch_first=True, *args, **kwargs):
+    def __init__(
+        self,
+        dsz: int,
+        trainable: bool = False,
+        name: Optional[str] = None,
+        dtype: int = tf.float32,
+        batch_first: bool = True,
+        *args,
+        **kwargs,
+    ):
         """This is a layers the calculates the mean pooling in a length awareway.
 
            This was originally a wrapper around tf.keras.layers.GlobalAveragePooling1D()
@@ -2234,7 +2328,14 @@ class MeanPool1D(tf.keras.layers.Layer):
 
 
 class TagSequenceModel(tf.keras.Model):
-    def __init__(self, nc, embeddings, transducer, decoder=None, name=None):
+    def __init__(
+        self,
+        nc: int,
+        embeddings: tf.keras.layers.Layer,
+        transducer: tf.keras.layers.Layer,
+        decoder: Optional[tf.keras.layers.Layer] = None,
+        name: str = None,
+    ):
         super().__init__(name=name)
         if isinstance(embeddings, dict):
             self.embed_model = EmbeddingsStack(embeddings)
@@ -2268,13 +2369,16 @@ class TagSequenceModel(tf.keras.Model):
 
 
 class LangSequenceModel(tf.keras.Model):
-    def __init__(self, nc, embeddings, transducer, decoder=None, name=None):
+    def __init__(
+        self,
+        nc: int,
+        embeddings: tf.keras.layers.Layer,
+        transducer: tf.keras.layers.Layer,
+        decoder: Optional[tf.keras.layers.Layer] = None,
+        name: str = None,
+    ):
         super().__init__(name=name)
-        if isinstance(embeddings, dict):
-            self.embed_model = EmbeddingsStack(embeddings)
-        else:
-            assert isinstance(embeddings, EmbeddingsStack)
-            self.embed_model = embeddings
+        self.embed_model = embeddings
         self.transducer_model = transducer
         if hasattr(transducer, "requires_state") and transducer.requires_state:
             self._call = self._call_with_state
@@ -2305,14 +2409,16 @@ class LangSequenceModel(tf.keras.Model):
 
 
 class EmbedPoolStackModel(tf.keras.Model):
-    def __init__(self, nc, embeddings, pool_model, stack_model=None, output_model=None):
+    def __init__(
+        self,
+        nc: int,
+        embeddings: tf.keras.layers.Layer,
+        pool_model: tf.keras.layers.Layer,
+        stack_model: Optional[tf.keras.layers.Layer] = None,
+        output_model: Optional[tf.keras.layers.Layer] = None,
+    ):
         super().__init__()
-        if isinstance(embeddings, dict):
-            self.embed_model = EmbeddingsStack(embeddings)
-        else:
-            assert isinstance(embeddings, EmbeddingsStack)
-            self.embed_model = embeddings
-
+        self.embed_model = embeddings
         self.pool_requires_length = False
         if hasattr(pool_model, "requires_length"):
             self.pool_requires_length = pool_model.requires_length
@@ -2333,13 +2439,9 @@ class EmbedPoolStackModel(tf.keras.Model):
 
 
 class FineTuneModel(tf.keras.Model):
-    def __init__(self, nc, embeddings, stack_model=None):
+    def __init__(self, nc: int, embeddings: tf.keras.layers.Layer, stack_model: Optional[tf.keras.layers.Layer] = None):
         super().__init__()
-        if isinstance(embeddings, dict):
-            self.finetuned = EmbeddingsStack(embeddings)
-        else:
-            assert isinstance(embeddings, EmbeddingsStack)
-            self.finetuned = embeddings
+        self.finetuned = embeddings
         self.stack_model = stack_model
         self.output_layer = tf.keras.layers.Dense(nc)
 
@@ -2506,7 +2608,7 @@ class VectorSequenceAttention(tf.keras.layers.Layer):
 
 
 class LuongDotProductAttention(VectorSequenceAttention):
-    def __init__(self, hsz):
+    def __init__(self, hsz: int):
         super().__init__(hsz)
 
     def _attention(self, query_t, keys_bth, keys_mask):
@@ -2519,7 +2621,7 @@ class LuongDotProductAttention(VectorSequenceAttention):
 
 
 class ScaledDotProductAttention(VectorSequenceAttention):
-    def __init__(self, hsz):
+    def __init__(self, hsz: int):
         super().__init__(hsz)
 
     def _attention(self, query_t, keys_bth, keys_mask):
@@ -2533,7 +2635,7 @@ class ScaledDotProductAttention(VectorSequenceAttention):
 
 
 class LuongGeneralAttention(VectorSequenceAttention):
-    def __init__(self, hsz):
+    def __init__(self, hsz: int):
         super().__init__(hsz)
         self.W_a = tf.keras.layers.Dense(self.hsz, use_bias=False)
 
@@ -2547,7 +2649,7 @@ class LuongGeneralAttention(VectorSequenceAttention):
 
 
 class BahdanauAttention(VectorSequenceAttention):
-    def __init__(self, hsz):
+    def __init__(self, hsz: int):
         super().__init__(hsz)
         self.hsz = hsz
         self.W_a = tf.keras.layers.Dense(self.hsz, use_bias=False)
@@ -2581,7 +2683,7 @@ class BahdanauAttention(VectorSequenceAttention):
         return attended
 
 
-def subsequent_mask(size):
+def subsequent_mask(size: int):
     b = tf.compat.v1.matrix_band_part(tf.ones([size, size]), -1, 0)
     m = tf.reshape(b, [1, 1, size, size])
     return m
@@ -2667,7 +2769,7 @@ def update_lengths(lengths, eoses, idx):
 
 
 class BeamSearchBase:
-    def __init__(self, beam=1, length_penalty=None, **kwargs):
+    def __init__(self, beam: int = 1, length_penalty=None, **kwargs):
         self.length_penalty = length_penalty if length_penalty else no_length_penalty
         self.K = beam
 
@@ -2816,7 +2918,7 @@ class BeamSearchBase:
 
 
 class StackedLSTMCell(tf.keras.layers.AbstractRNNCell):
-    def __init__(self, num_layers, input_size, rnn_size, dropout):
+    def __init__(self, num_layers: int, input_size: int, rnn_size: int, dropout: float):
         super().__init__()
         self.rnn_size = rnn_size
         self.dropout = tf.keras.layers.Dropout(dropout)
@@ -2836,7 +2938,7 @@ class StackedLSTMCell(tf.keras.layers.AbstractRNNCell):
         raise NotImplementedError("Abstract method")
 
     @property
-    def output_size(self):
+    def output_size(self) -> int:
         """Integer or TensorShape: size of outputs produced by this cell."""
         return self.rnn_size
 
@@ -2857,7 +2959,7 @@ class StackedLSTMCell(tf.keras.layers.AbstractRNNCell):
 
 
 class StackedGRUCell(tf.keras.layers.AbstractRNNCell):
-    def __init__(self, num_layers, input_size, rnn_size, dropout):
+    def __init__(self, num_layers: int, input_size: int, rnn_size: int, dropout: float):
         super().__init__()
         self.dropout = tf.keras.layers.Dropout(dropout)
         self.rnn_size = rnn_size
@@ -2888,12 +2990,12 @@ class StackedGRUCell(tf.keras.layers.AbstractRNNCell):
 
 if get_version(tf) < 2:
 
-    def rnn_cell(hsz, rnntype, st=None):
+    def rnn_cell(hsz: int, rnntype: str, st: bool = None):
         """Produce a single RNN cell
 
-        :param hsz: (``int``) The number of hidden units per LSTM
-        :param rnntype: (``str``): `lstm` or `gru`
-        :param st: (``bool``) state is tuple? defaults to `None`
+        :param hsz: The number of hidden units per LSTM
+        :param rnntype: `lstm` or `gru`
+        :param st: state is tuple? defaults to `None`
         :return: a cell
         """
         if st is not None:
@@ -2909,7 +3011,7 @@ if get_version(tf) < 2:
 
 else:
 
-    def rnn_cell(insz, hsz, rnntype, nlayers=1, dropout=0.5):
+    def rnn_cell(insz: int, hsz: int, rnntype: str, nlayers: int = 1, dropout: float = 0.5):
 
         if rnntype == "gru":
             rnn = StackedGRUCell(nlayers, insz, hsz, dropout)

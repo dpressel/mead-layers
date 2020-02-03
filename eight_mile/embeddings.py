@@ -4,14 +4,7 @@ import logging
 import collections
 import contextlib
 import numpy as np
-from eight_mile.utils import (
-    optional_params,
-    exporter,
-    write_json,
-    read_config_file,
-    Offsets,
-    mime_type,
-)
+from eight_mile.utils import optional_params, exporter, write_json, read_config_file, Offsets, mime_type
 
 __all__ = []
 export = exporter(__all__)
