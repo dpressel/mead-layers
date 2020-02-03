@@ -2248,7 +2248,7 @@ class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
         x, lengths = inputs
         x = self.proj(x)
         max_seqlen = x.shape[1]
-        mask = subsequent_mask(max_seqlen)
+        mask = subsequent_mask(max_seqlen).to(x.device)
         return super().forward((x, mask.unsqueeze(1).unsqueeze(1)))
 
 
