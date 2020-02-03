@@ -2023,7 +2023,7 @@ class TransformerEncoderStackWithTimeMask(TransformerEncoderStack):
         self.proj = WithDropout(tf.keras.layers.Dense(d_model), pdrop)
 
     def call(self, inputs):
-        x, lengths = inputs
+        x, _ = inputs
         x = self.proj(x)
         max_seqlen = get_shape_as_list(x)[1]
         mask = subsequent_mask(max_seqlen)
